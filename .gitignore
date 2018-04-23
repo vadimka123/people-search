@@ -1,0 +1,11 @@
+venv
+*.pyc
+.idea
+people_search/local_settings.py
+node_modules/
+temp/
+media/
+react/node_modules
+react/build
+react/package-lock.json
+npm-debug.log

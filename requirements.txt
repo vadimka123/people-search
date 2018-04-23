@@ -1,0 +1,6 @@
+celery==4.1.0
+django==2.0.4
+face_recognition==1.2.2
+
+pycurl==7.43.0
+beautifulsoup4==4.6.0
