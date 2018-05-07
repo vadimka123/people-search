@@ -1,22 +1,20 @@
-import certifi
-import io
+import cloudinary
 import os
-import pycurl
 import time
 import threading
 
-from bs4 import BeautifulSoup
+from cloudinary.api import delete_resources
+from cloudinary.uploader import upload
 from django.conf import settings
 from queue import Queue
 from os import walk
 
+from engine.incandescent import Client
 
-SEARCH_URL = 'https://www.google.com/searchbyimage?&image_url='
 
-
-class ImageSearchWorker(threading.Thread):
+class ImageUploadWorker(threading.Thread):
     def __init__(self, queue):
-        super(ImageSearchWorker, self).__init__()
+        super(ImageUploadWorker, self).__init__()
         self._stop = threading.Event()
         self.queue = queue
 
@@ -35,41 +33,9 @@ class ImageSearchWorker(threading.Thread):
     def stop(self):
         self._stop.set()
 
-    def process(self, image):
-        # TODO: upload image and search by them
-        image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Steve_Jobs_Headshot_2010-CROP.jpg/267px-Steve_Jobs_Headshot_2010-CROP.jpg'
-
-        returned_code = io.BytesIO()
-        full_url = SEARCH_URL + image_url
-        conn = pycurl.Curl()
-        conn.setopt(conn.CAINFO, certifi.where())
-        conn.setopt(conn.URL, str(full_url))
-        conn.setopt(conn.FOLLOWLOCATION, 1)
-        useragent = """
-            Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.97 Safari/537.11
-        """
-        conn.setopt(conn.USERAGENT, useragent)
-        conn.setopt(conn.WRITEFUNCTION, returned_code.write)
-        conn.perform()
-        conn.close()
-        code = returned_code.getvalue().decode('UTF-8')
-
-        soup = BeautifulSoup(code, 'html.parser')
-
-        results = {
-            'links': [],
-            'titles': [],
-            'best_guess': ''
-        }
-
-        for div, title in zip(soup.findAll('div', attrs={'class': 'rc'}), soup.findAll('h3', attrs={'class': 'r'})):
-            results['links'].append(div.find('a')['href'])
-            results['titles'].append(title.get_text())
-
-        for best_guess in soup.findAll('a', attrs={'class': 'fKDtNb'}):
-            results['best_guess'] = best_guess.get_text()
-
-        print(results)
+    def process(self, image, results):
+        result = upload(image)
+        results.append(result)
 
 
 class ImageSearch(object):
@@ -89,14 +55,22 @@ class ImageSearch(object):
     def search(self):
         images = self.images_to_search
 
+        cloudinary.config(
+            cloud_name="vadimka",
+            api_key="996446192869348",
+            api_secret="paxsYQvJej8MDg3DTihxWmWaR-4"
+        )
+
         threads = []
         search_queue = Queue()
 
         q_size_limit = 30
 
+        results = []
+
         try:
             for x in range(0, len(images)):
-                worker = ImageSearchWorker(search_queue,)
+                worker = ImageUploadWorker(search_queue,)
                 worker.daemon = True
                 threads.append(worker)
                 worker.start()
@@ -104,7 +78,7 @@ class ImageSearch(object):
             for image in self.images_to_search:
                 while search_queue.qsize() >= q_size_limit:
                     time.sleep(1)
-                search_queue.put(('{}/{}'.format(self.image_folder, image),))
+                search_queue.put(('{}/{}'.format(self.image_folder, image), results))
 
             search_queue.join()
         except Exception as e:
@@ -113,3 +87,16 @@ class ImageSearch(object):
             for thread in threads:
                 thread.stop()
             search_queue.queue.clear()
+
+        if len(results) > 0:
+            search = Client()
+            search.add_image_urls([result.get('url') for result in results if result.get('url')])
+            search.make_request_data()
+            search.make_request()
+            search_results = search.get_results()
+
+            delete_resources(public_ids=[result.get('public_id') for result in results if result.get('public_id')])
+
+            return search_results
+
+        return []

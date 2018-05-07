@@ -5,8 +5,11 @@ from engine.image_search import ImageSearch
 
 
 class Test(TestCase):
-    def test_face(self):
+    def test_engine(self):
         detector = FaceDetector('test', 'test.jpg')
         detector.detect()
+
         image_search = ImageSearch('test')
-        image_search.search()
+        results = image_search.search()
+
+        
