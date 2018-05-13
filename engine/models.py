@@ -1,7 +1,7 @@
 import jsonfield
 import os
+import requests
 
-from datetime import date
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -70,7 +70,21 @@ def parse_search_result(search_result, person):
     phones = [phone.display for phone in person.phones or [] if phone.display] if hasattr(person, 'phones') else []
     emails = [email.display for email in person.emails or [] if email.display] if hasattr(person, 'emails') else []
     names = [name.display for name in person.names or [] if name.display] if hasattr(person, 'names') else []
-    images = [image.url for image in person.images or [] if image.url] if hasattr(person, 'images') else []
+    images = []
+    if hasattr(person, 'images'):
+        for image in person.images:
+            if not image.url:
+                continue
+
+            try:
+                r = requests.get(image.url)
+            except Exception:
+                continue
+
+            if 'image' not in r.headers.get('Content-Type'):
+                continue
+
+            images.append(image.url)
 
     return PosiblePerson(search_result=search_result, gender=gender, dob=dob, jobs=jobs, addresses=addresses,
                          educations=educations, ethnicities=ethnicities, phones=phones, emails=emails,
@@ -102,12 +116,19 @@ def invitation_post_save(sender, instance, created, **kwargs):
 
         posible_persons = []
         for search_result in instance.search_results.all():
+            first_name, last_name = search_result.person_name.split(' ', 2)
             result = SocialSearch(name=search_result.person_name).search()
             if result and result.person:
-                posible_persons.append(parse_search_result(search_result, result.person))
+                names = result.person.names
+                is_exist_name = next((name for name in names if first_name in name and last_name in name), None)
+                if is_exist_name:
+                    posible_persons.append(parse_search_result(search_result, result.person))
 
             for person in result.possible_persons:
-                posible_persons.append(parse_search_result(search_result, person))
+                names = person.names
+                is_exist_name = next((name for name in names if first_name in name and last_name in name), None)
+                if is_exist_name:
+                    posible_persons.append(parse_search_result(search_result, person))
 
             if len(posible_persons) >= 50:
                 PosiblePerson.objects.bulk_create(posible_persons)
