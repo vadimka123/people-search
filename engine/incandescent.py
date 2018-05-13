@@ -6,6 +6,7 @@ from hashlib import md5
 
 ADD_ENDPOINT = "https://incandescent.xyz/api/add/"
 GET_ENDPOINT = "https://incandescent.xyz/api/get/"
+CREDIT_ENDPOINT = "https://incandescent.xyz/api/credit/"
 
 UID = 7429
 API_KEY = "d35ea63babe3b47fbced5046e330fccd"
@@ -15,7 +16,9 @@ WAIT_TIME = 10
 
 class Client(object):
     def __init__(self):
-        self.data = {}
+        self.data = {
+            'multiple': 3
+        }
 
         self.image_urls = None
         self.project_id = None
@@ -55,6 +58,7 @@ class Client(object):
             response = json.loads(r.content)
             if response.get('status') == 710:
                 time.sleep(WAIT_TIME)
+                print('Reverse Image Search: Pooling status', response)
                 return self.get_results()
             results = []
             if 'status' not in response:
@@ -62,6 +66,8 @@ class Client(object):
                     for page, result in site_results.get('pages', {}).items():
                         if result.get('page'):
                             results.append(result.get('page'))
+            else:
+                print(response)
             return results
         except Exception as e:
             print(e)

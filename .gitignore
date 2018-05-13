@@ -9,3 +9,4 @@ react/node_modules
 react/build
 react/package-lock.json
 npm-debug.log
+db.sqlite3

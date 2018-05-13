@@ -13,8 +13,7 @@ class FaceDetector(object):
         self.image_name = image_name
 
     def detect(self):
-        image = face_recognition.load_image_file('{}/media/{}/{}'.format(settings.BASE_DIR, self.image_folder,
-                                                                         self.image_name))
+        image = face_recognition.load_image_file('{}/{}'.format(settings.BASE_DIR, self.image_name))
 
         face_locations = face_recognition.face_locations(image)
 

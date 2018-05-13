@@ -12,9 +12,9 @@ from os import walk
 from engine.incandescent import Client
 
 
-class ImageUploadWorker(threading.Thread):
+class ImageSearchWorker(threading.Thread):
     def __init__(self, queue):
-        super(ImageUploadWorker, self).__init__()
+        super(ImageSearchWorker, self).__init__()
         self._stop = threading.Event()
         self.queue = queue
 
@@ -35,7 +35,17 @@ class ImageUploadWorker(threading.Thread):
 
     def process(self, image, results):
         result = upload(image)
-        results.append(result)
+
+        if result.get('url'):
+            search = Client()
+            search.add_image_urls([result.get('url')])
+            search.make_request_data()
+            search.make_request()
+            search_results = search.get_results()
+
+            results[result.get('url')] = search_results
+
+            delete_resources(public_ids=[result.get('public_id')])
 
 
 class ImageSearch(object):
@@ -66,11 +76,11 @@ class ImageSearch(object):
 
         q_size_limit = 30
 
-        results = []
+        results = {}
 
         try:
             for x in range(0, len(images)):
-                worker = ImageUploadWorker(search_queue,)
+                worker = ImageSearchWorker(search_queue,)
                 worker.daemon = True
                 threads.append(worker)
                 worker.start()
@@ -88,15 +98,4 @@ class ImageSearch(object):
                 thread.stop()
             search_queue.queue.clear()
 
-        if len(results) > 0:
-            search = Client()
-            search.add_image_urls([result.get('url') for result in results if result.get('url')])
-            search.make_request_data()
-            search.make_request()
-            search_results = search.get_results()
-
-            delete_resources(public_ids=[result.get('public_id') for result in results if result.get('public_id')])
-
-            return search_results
-
-        return []
+        return results
