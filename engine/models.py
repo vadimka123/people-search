@@ -81,7 +81,7 @@ def parse_search_result(search_result, person):
             except Exception:
                 continue
 
-            if 'image' not in r.headers.get('Content-Type'):
+            if 'image' not in r.headers.get('Content-Type', ''):
                 continue
 
             images.append(image.url)
