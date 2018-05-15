@@ -120,13 +120,13 @@ def invitation_post_save(sender, instance, created, **kwargs):
             result = SocialSearch(name=search_result.person_name).search()
             if result and result.person:
                 names = result.person.names
-                is_exist_name = next((name for name in names if first_name in name and last_name in name), None)
+                is_exist_name = next((name for name in names if first_name in name and last_name in name.display), None)
                 if is_exist_name:
                     posible_persons.append(parse_search_result(search_result, result.person))
 
             for person in result.possible_persons:
                 names = person.names
-                is_exist_name = next((name for name in names if first_name in name and last_name in name), None)
+                is_exist_name = next((name for name in names if first_name in name and last_name in name.display), None)
                 if is_exist_name:
                     posible_persons.append(parse_search_result(search_result, person))
 
