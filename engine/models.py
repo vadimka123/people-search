@@ -71,10 +71,13 @@ def parse_search_result(search_result, person):
     emails = [email.display for email in person.emails or [] if email.display] if hasattr(person, 'emails') else []
     names = [name.display for name in person.names or [] if name.display] if hasattr(person, 'names') else []
     images = []
+    checked = []
     if hasattr(person, 'images'):
         for image in person.images:
-            if not image.url:
+            if not image.url or image.url in checked:
                 continue
+
+            checked.append(image.url)
 
             try:
                 r = requests.get(image.url)
@@ -130,11 +133,11 @@ def invitation_post_save(sender, instance, created, **kwargs):
                 if is_exist_name:
                     posible_persons.append(parse_search_result(search_result, person))
 
-            if len(posible_persons) >= 50:
-                PosiblePerson.objects.bulk_create(posible_persons)
-                posible_persons = []
+                if len(posible_persons) >= 50:
+                    PosiblePerson.objects.bulk_create(posible_persons)
+                    posible_persons = []
 
-        if len(posible_persons) > 0:
-            PosiblePerson.objects.bulk_create(posible_persons)
+            if len(posible_persons) > 0:
+               PosiblePerson.objects.bulk_create(posible_persons)
 
         print('social search is done')
